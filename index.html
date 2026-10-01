@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sudoku Pro - Con Puntuación e Historial Local</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #f8fafc;
+      color: #1e293b;
+      padding: 16px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 12px;
+    }
+
+    /* Barra superior de estado */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 8px 14px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e2e8f0;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-errors {
+      color: #dc2626;
+    }
+
+    .btn-pause-inline {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background 0.15s;
+    }
+
+    .btn-pause-inline:hover {
+      background: #e2e8f0;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    select, button {
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    select {
+      flex: 1;
+      outline: none;
+    }
+
+    button.btn-primary {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+    }
+
+    button.btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+
+    button.btn-secondary {
+      background-color: #f8fafc;
+      color: #334155;
+    }
+
+    button.btn-secondary:hover {
+      background-color: #e2e8f0;
+    }
+
+    /* Tablero */
+    .grid-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      width: 100%;
+      height: 100%;
+      background-color: #0f172a;
+      border: 3px solid #0f172a;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+    }
+
+    /* Overlay de Pausa */
+    .pause-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(248, 250, 252, 0.88);
+      backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      border-radius: 8px;
+      z-index: 10;
+    }
+
+    .pause-overlay.visible {
+      display: flex;
+    }
+
+    .pause-overlay h2 {
+      font-size: 1.4rem;
+      color: #0f172a;
+    }
+
+    /* Celdas */
+    .cell {
+      position: relative;
+      background-color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 0.5px solid #e2e8f0;
+      transition: background-color 0.12s ease;
+    }
+
+    .cell:nth-child(3n) {
+      border-right: 2.5px solid #0f172a;
+    }
+    .cell:nth-child(9n) {
+      border-right: none;
+    }
+    .grid > div:nth-child(n+19):nth-child(-n+27),
+    .grid > div:nth-child(n+46):nth-child(-n+54) {
+      border-bottom: 2.5px solid #0f172a;
+    }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      padding: 2px;
+    }
+
+    .note-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #64748b;
+      line-height: 1;
+    }
+
+    /* Estados de celda */
+    .cell.selected {
+      background-color: #bfdbfe !important;
+    }
+
+    .cell.highlighted {
+      background-color: #eff6ff;
+    }
+
+    .cell.same-number {
+      background-color: #dbeafe;
+    }
+
+    .cell.clue {
+      color: #0f172a;
+      font-weight: 700;
+    }
+
+    .cell.user-correct {
+      color: #16a34a;
+    }
+
+    .cell.user-error {
+      color: #dc2626;
+      background-color: #fee2e2 !important;
+      animation: shake 0.25s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      75% { transform: translateX(3px); }
+    }
+
+    /* Barra de herramientas */
+    .tools-bar {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-top: 14px;
+      gap: 10px;
+    }
+
+    .btn-tool {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+    }
+
+    .btn-tool.active {
+      background-color: #2563eb;
+      color: #ffffff;
+      border-color: #1d4ed8;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+    }
+
+    /* Teclado numérico */
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .numpad-btn {
+      height: 48px;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1e293b;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .numpad-btn:active:not(:disabled) {
+      background-color: #e2e8f0;
+      transform: scale(0.97);
+    }
+
+    .numpad-btn.btn-erase {
+      color: #dc2626;
+      font-size: 1.1rem;
+    }
+
+    .numpad-btn:disabled,
+    .numpad-btn.completed {
+      opacity: 0.28;
+      background-color: #e2e8f0 !important;
+      color: #94a3b8 !important;
+      border-color: #cbd5e1 !important;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none !important;
+    }
+
+    /* Modales (Victoria e Historial) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 16px;
+    }
+
+    .modal-backdrop.visible {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 12px;
+      max-width: 440px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .stat-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    /* Tabla de Historial */
+    .history-table-wrapper {
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    .history-table th {
+      background: #f1f5f9;
+      padding: 8px;
+      color: #475569;
+      position: sticky;
+      top: 0;
+    }
+
+    .history-table td {
+      padding: 8px;
+      border-top: 1px solid #e2e8f0;
+      color: #1e293b;
+    }
+
+    .score-badge {
+      font-weight: 700;
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Sudoku</h1>
+
+    <div class="header-bar">
+      <div class="status-badge badge-errors">
+        <span>Fallos:</span>
+        <strong id="error-count">0</strong>
+      </div>
+      <div class="status-badge">
+        <span>Tiempo:</span>
+        <strong id="timer">00:00</strong>
+        <button id="btn-pause" class="btn-pause-inline" onclick="togglePausa()" title="Pausar juego">
+          <span id="pause-icon">⏸</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <select id="difficulty">
+        <option value="42">Fácil (42 pistas)</option>
+        <option value="34" selected>Medio (34 pistas)</option>
+        <option value="28">Difícil (28 pistas)</option>
+        <option value="24">Experto (24 pistas)</option>
+      </select>
+      <button class="btn-primary" onclick="nuevoJuego()">Nuevo Juego</button>
+    </div>
+
+    <!-- Tablero con Overlay de Pausa -->
+    <div class="grid-wrapper">
+      <div class="grid" id="sudoku-grid"></div>
+      <div class="pause-overlay" id="pause-overlay">
+        <h2>Juego en pausa</h2>
+        <button class="btn-primary" onclick="reanudarJuego()">▶ Reanudar</button>
+      </div>
+    </div>
+
+    <!-- Herramientas -->
+    <div class="tools-bar">
+      <button class="btn-tool" onclick="abrirHistorial()">
+        <span>🏆 Historial</span>
+      </button>
+      <button id="btn-pencil" class="btn-tool" onclick="toggleModoLapiz()">
+        <span>✏️ Lápiz (N)</span>
+        <span id="pencil-status">OFF</span>
+      </button>
+    </div>
+
+    <!-- Teclado numérico -->
+    <div class="numpad">
+      <button class="numpad-btn" id="btn-num-1" onclick="presionarNumero(1)">1</button>
+      <button class="numpad-btn" id="btn-num-2" onclick="presionarNumero(2)">2</button>
+      <button class="numpad-btn" id="btn-num-3" onclick="presionarNumero(3)">3</button>
+      <button class="numpad-btn" id="btn-num-4" onclick="presionarNumero(4)">4</button>
+      <button class="numpad-btn" id="btn-num-5" onclick="presionarNumero(5)">5</button>
+      <button class="numpad-btn" id="btn-num-6" onclick="presionarNumero(6)">6</button>
+      <button class="numpad-btn" id="btn-num-7" onclick="presionarNumero(7)">7</button>
+      <button class="numpad-btn" id="btn-num-8" onclick="presionarNumero(8)">8</button>
+      <button class="numpad-btn" id="btn-num-9" onclick="presionarNumero(9)">9</button>
+      <button class="numpad-btn btn-erase" onclick="borrarCelda()">⌫</button>
+    </div>
+  </div>
+
+  <!-- Modal de Victoria y Puntuación -->
+  <div class="modal-backdrop" id="victory-modal">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>🎉 ¡Completado con Éxito!</span>
+      </div>
+      <p style="font-size: 0.9rem; color: #64748b;">Tu partida ha sido guardada en el historial local.</p>
+      
+      <div class="modal-stats">
+        <div class="stat-item">
+          <span class="stat-label">Puntaje Final</span>
+          <span class="stat-val score-badge" id="vic-score">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Dificultad</span>
+          <span class="stat-val" id="vic-diff">-</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Tiempo</span>
+          <span class="stat-val" id="vic-time">00:00</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Errores</span>
+          <span class="stat-val" id="vic-errors">0</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-primary" style="flex: 1;" onclick="cerrarVictoria(); nuevoJuego();">Jugar Otra Vez</button>
+        <button class="btn-secondary" onclick="cerrarVictoria(); abrirHistorial();">Ver Historial</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Historial y Estadísticas -->
+  <div class="modal-backdrop" id="history-modal">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>🏆 Historial de Partidas</span>
+        <button style="border:none; background:none; font-size:1.2rem; cursor:pointer;" onclick="cerrarHistorial()">✕</button>
+      </div>
+
+      <div class="modal-stats">
+        <div class="stat-item">
+          <span class="stat-label">Partidas Ganadas</span>
+          <span class="stat-val" id="stat-total-games">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Mejor Puntaje</span>
+          <span class="stat-val score-badge" id="stat-best-score">0</span>
+        </div>
+      </div>
+
+      <div class="history-table-wrapper">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Nivel</th>
+              <th>Tiempo</th>
+              <th>Fallos</th>
+              <th>Puntos</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <!-- Se llena dinámicamente con JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn-secondary" style="color: #dc2626;" onclick="limpiarHistorial()">Borrar Historial</button>
+        <button class="btn-primary" onclick="cerrarHistorial()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Variables de estado
+    let tableroSolucion = [];
+    let tableroInicial = [];
+    let tableroUsuario = [];
+    let tableroNotas = [];
+    let celdaSeleccionada = null;
+    let contadorErrores = 0;
+    let temporizador = null;
+    let segundosTranscurridos = 0;
+    let modoLapiz = false;
+    let enPausa = false;
+    let juegoTerminado = false;
+
+    // Base de datos local
+    const STORAGE_KEY = "sudoku_game_history_v1";
+
+    // --- GENERACIÓN DEL TABLERO ---
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function esValido(tablero, f, c, num) {
+      for (let i = 0; i < 9; i++) {
+        if (tablero[f][i] === num || tablero[i][c] === num) return false;
+      }
+      const startF = Math.floor(f / 3) * 3;
+      const startC = Math.floor(c / 3) * 3;
+      for (let r = 0; r < 3; r++) {
+        for (let k = 0; k < 3; k++) {
+          if (tablero[startF + r][startC + k] === num) return false;
+        }
+      }
+      return true;
+    }
+
+    function llenarTablero(tablero) {
+      for (let f = 0; f < 9; f++) {
+        for (let c = 0; c < 9; c++) {
+          if (tablero[f][c] === 0) {
+            const numeros = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            for (let num of numeros) {
+              if (esValido(tablero, f, c, num)) {
+                tablero[f][c] = num;
+                if (llenarTablero(tablero)) return true;
+                tablero[f][c] = 0;
+              }
+            }
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function vaciarCeldasConSimetria(solucion, pistasDeseadas) {
+      const tablero = solucion.map(r => [...r]);
+      let celdasRestantes = 81;
+      const pistasPorBloque = Array(9).fill(9);
+      const minPorBloque = Math.max(2, Math.floor(pistasDeseadas / 9) - 1);
+
+      const pares = [];
+      for (let f = 0; f < 5; f++) {
+        for (let c = 0; c < 9; c++) {
+          if (f === 4 && c > 4) continue;
+          pares.push([[f, c], [8 - f, 8 - c]]);
+        }
+      }
+      shuffle(pares);
+
+      for (let [c1, c2] of pares) {
+        if (celdasRestantes <= pistasDeseadas) break;
+        const [f1, col1] = c1;
+        const [f2, col2] = c2;
+        const b1 = Math.floor(f1 / 3) * 3 + Math.floor(col1 / 3);
+        const b2 = Math.floor(f2 / 3) * 3 + Math.floor(col2 / 3);
+        const esCentro = (f1 === f2 && col1 === col2);
+        const aRetirar = esCentro ? 1 : 2;
+
+        if (celdasRestantes - aRetirar < pistasDeseadas) continue;
+        if (pistasPorBloque[b1] - 1 < minPorBloque || pistasPorBloque[b2] - 1 < minPorBloque) continue;
+
+        tablero[f1][col1] = 0;
+        pistasPorBloque[b1]--;
+        celdasRestantes--;
+
+        if (!esCentro) {
+          tablero[f2][col2] = 0;
+          pistasPorBloque[b2]--;
+          celdasRestantes--;
+        }
+      }
+      return tablero;
+    }
+
+    // --- SISTEMA DE PUNTUACIÓN Y LOCALSTORAGE ---
+    function obtenerPuntosBasePorPistas(pistas) {
+      if (pistas >= 40) return { base: 2000, label: "Fácil" };
+      if (pistas >= 32) return { base: 4000, label: "Medio" };
+      if (pistas >= 26) return { base: 7000, label: "Difícil" };
+      return { base: 10000, label: "Experto" };
+    }
+
+    function calcularPuntaje(pistas, segundos, errores) {
+      const { base } = obtenerPuntosBasePorPistas(pistas);
+      const penalizacionTiempo = segundos * 2;
+      const penalizacionErrores = errores * 150;
+      const total = base - penalizacionTiempo - penalizacionErrores;
+      return Math.max(100, Math.round(total));
+    }
+
+    function guardarPartida(resultado) {
+      try {
+        const historial = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        historial.unshift(resultado); // Añadir al inicio
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(historial));
+      } catch (e) {
+        console.error("Error guardando en localStorage:", e);
+      }
+    }
+
+    function cargarHistorial() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch (e) {
+        console.error("Error leyendo de localStorage:", e);
+        return [];
+      }
+    }
+
+    function limpiarHistorial() {
+      if (confirm("¿Estás seguro de que deseas reiniciar todo tu historial de partidas?")) {
+        localStorage.removeItem(STORAGE_KEY);
+        actualizarVistaHistorial();
+      }
+    }
+
+    // --- MODALES Y VISTA DE HISTORIAL ---
+    function abrirHistorial() {
+      pausarJuego();
+      actualizarVistaHistorial();
+      document.getElementById("history-modal").classList.add("visible");
+    }
+
+    function cerrarHistorial() {
+      document.getElementById("history-modal").classList.remove("visible");
+    }
+
+    function cerrarVictoria() {
+      document.getElementById("victory-modal").classList.remove("visible");
+    }
+
+    function actualizarVistaHistorial() {
+      const historial = cargarHistorial();
+      const tbody = document.getElementById("history-tbody");
+      tbody.innerHTML = "";
+
+      let mejorPuntaje = 0;
+
+      if (historial.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding: 16px;">Sin partidas registradas aún.</td></tr>`;
+      } else {
+        historial.forEach(h => {
+          if (h.puntaje > mejorPuntaje) mejorPuntaje = h.puntaje;
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${h.fecha}</td>
+            <td><strong>${h.dificultad}</strong></td>
+            <td>${h.tiempo}</td>
+            <td style="color:${h.errores > 0 ? '#dc2626' : '#16a34a'}">${h.errores}</td>
+            <td class="score-badge">${h.puntaje.toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById("stat-total-games").textContent = historial.length;
+      document.getElementById("stat-best-score").textContent = mejorPuntaje.toLocaleString();
+    }
+
+    // --- TIEMPO Y PAUSA ---
+    function formatearTiempo(totalSeg) {
+      const m = String(Math.floor(totalSeg / 60)).padStart(2, "0");
+      const s = String(totalSeg % 60).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function correrReloj() {
+      temporizador = setInterval(() => {
+        segundosTranscurridos++;
+        document.getElementById("timer").textContent = formatearTiempo(segundosTranscurridos);
+      }, 1000);
+    }
+
+    function pausarJuego() {
+      if (enPausa || juegoTerminado) return;
+      enPausa = true;
+      clearInterval(temporizador);
+      document.getElementById("pause-overlay").classList.add("visible");
+      document.getElementById("pause-icon").textContent = "▶";
+    }
+
+    function reanudarJuego() {
+      if (!enPausa || juegoTerminado) return;
+      enPausa = false;
+      correrReloj();
+      document.getElementById("pause-overlay").classList.remove("visible");
+      document.getElementById("pause-icon").textContent = "⏸";
+    }
+
+    function togglePausa() {
+      if (enPausa) reanudarJuego();
+      else pausarJuego();
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && !enPausa && !juegoTerminado) pausarJuego();
+    });
+
+    window.addEventListener("blur", () => {
+      if (!enPausa && !juegoTerminado) pausarJuego();
+    });
+
+    // --- MODO LÁPIZ Y ENTRADA ---
+    function toggleModoLapiz() {
+      if (enPausa) return;
+      modoLapiz = !modoLapiz;
+      const btn = document.getElementById("btn-pencil");
+      const status = document.getElementById("pencil-status");
+      if (modoLapiz) {
+        btn.classList.add("active");
+        status.textContent = "ON";
+      } else {
+        btn.classList.remove("active");
+        status.textContent = "OFF";
+      }
+    }
+
+    function seleccionarCelda(f, c) {
+      if (enPausa) return;
+      celdaSeleccionada = { f, c };
+      actualizarEstilosTablero();
+    }
+
+    function limpiarNotasVecinos(fila, col, num) {
+      const startF = Math.floor(fila / 3) * 3;
+      const startC = Math.floor(col / 3) * 3;
+      for (let i = 0; i < 9; i++) {
+        tableroNotas[fila][i].delete(num);
+        tableroNotas[i][col].delete(num);
+      }
+      for (let r = 0; r < 3; r++) {
+        for (let k = 0; k < 3; k++) {
+          tableroNotas[startF + r][startC + k].delete(num);
+        }
+      }
+    }
+
+    function ingresarNumero(num) {
+      if (enPausa || !celdaSeleccionada) return;
+      const { f, c } = celdaSeleccionada;
+      if (tableroInicial[f][c] !== 0) return;
+
+      if (modoLapiz) {
+        if (tableroUsuario[f][c] !== 0) return;
+        if (tableroNotas[f][c].has(num)) tableroNotas[f][c].delete(num);
+        else tableroNotas[f][c].add(num);
+        actualizarEstilosTablero();
+        return;
+      }
+
+      tableroUsuario[f][c] = num;
+      tableroNotas[f][c].clear();
+
+      if (num !== tableroSolucion[f][c]) {
+        contadorErrores++;
+        document.getElementById("error-count").textContent = contadorErrores;
+      } else {
+        limpiarNotasVecinos(f, c, num);
+      }
+
+      actualizarEstilosTablero();
+      actualizarEstadoTeclado();
+      verificarVictoria();
+    }
+
+    function borrarCelda() {
+      if (enPausa || !celdaSeleccionada) return;
+      const { f, c } = celdaSeleccionada;
+      if (tableroInicial[f][c] !== 0) return;
+
+      if (tableroUsuario[f][c] !== 0) {
+        tableroUsuario[f][c] = 0;
+      } else {
+        tableroNotas[f][c].clear();
+      }
+
+      actualizarEstilosTablero();
+      actualizarEstadoTeclado();
+    }
+
+    function presionarNumero(num) {
+      if (enPausa) return;
+      const btn = document.getElementById(`btn-num-${num}`);
+      if (btn && btn.disabled) return;
+      ingresarNumero(num);
+    }
+
+    function actualizarEstadoTeclado() {
+      for (let num = 1; num <= 9; num++) {
+        let conteoCorrectos = 0;
+        for (let f = 0; f < 9; f++) {
+          for (let c = 0; c < 9; c++) {
+            if (tableroUsuario[f][c] === num && tableroSolucion[f][c] === num) {
+              conteoCorrectos++;
+            }
+          }
+        }
+
+        const btn = document.getElementById(`btn-num-${num}`);
+        if (btn) {
+          if (conteoCorrectos >= 9) {
+            btn.disabled = true;
+            btn.classList.add("completed");
+          } else {
+            btn.disabled = false;
+            btn.classList.remove("completed");
+          }
+        }
+      }
+    }
+
+    // --- RENDERIZADO VISUAL ---
+    function renderizarGrid() {
+      const grid = document.getElementById("sudoku-grid");
+      grid.innerHTML = "";
+
+      for (let f = 0; f < 9; f++) {
+        for (let c = 0; c < 9; c++) {
+          const div = document.createElement("div");
+          div.className = "cell";
+          div.dataset.fila = f;
+          div.dataset.col = c;
+          div.onclick = () => seleccionarCelda(f, c);
+          grid.appendChild(div);
+        }
+      }
+      actualizarEstilosTablero();
+    }
+
+    function actualizarEstilosTablero() {
+      const celdas = document.querySelectorAll(".cell");
+      const numActivo = celdaSeleccionada ? tableroUsuario[celdaSeleccionada.f][celdaSeleccionada.c] : null;
+
+      celdas.forEach(div => {
+        const f = parseInt(div.dataset.fila, 10);
+        const c = parseInt(div.dataset.col, 10);
+        const valor = tableroUsuario[f][c];
+        const esPista = tableroInicial[f][c] !== 0;
+
+        div.className = "cell";
+        div.innerHTML = "";
+
+        if (valor !== 0) {
+          div.textContent = valor;
+          if (esPista) {
+            div.classList.add("clue");
+          } else {
+            div.classList.add(valor === tableroSolucion[f][c] ? "user-correct" : "user-error");
+          }
+        } else {
+          const notas = tableroNotas[f][c];
+          if (notas && notas.size > 0) {
+            const notesGrid = document.createElement("div");
+            notesGrid.className = "notes-grid";
+            for (let i = 1; i <= 9; i++) {
+              const noteSpan = document.createElement("span");
+              noteSpan.className = "note-num";
+              noteSpan.textContent = notas.has(i) ? i : "";
+              notesGrid.appendChild(noteSpan);
+            }
+            div.appendChild(notesGrid);
+          }
+        }
+
+        if (celdaSeleccionada) {
+          const { f: selF, c: selC } = celdaSeleccionada;
+          const mismaCaja = Math.floor(f / 3) === Math.floor(selF / 3) && Math.floor(c / 3) === Math.floor(selC / 3);
+
+          if (f === selF && c === selC) {
+            div.classList.add("selected");
+          } else if (f === selF || c === selC || mismaCaja) {
+            div.classList.add("highlighted");
+          }
+
+          if (numActivo && valor === numActivo && valor !== 0) {
+            div.classList.add("same-number");
+          }
+        }
+      });
+    }
+
+    function verificarVictoria() {
+      for (let f = 0; f < 9; f++) {
+        for (let c = 0; c < 9; c++) {
+          if (tableroUsuario[f][c] !== tableroSolucion[f][c]) return;
+        }
+      }
+      
+      juegoTerminado = true;
+      clearInterval(temporizador);
+
+      const pistas = parseInt(document.getElementById("difficulty").value, 10);
+      const { label } = obtenerPuntosBasePorPistas(pistas);
+      const puntajeFinal = calcularPuntaje(pistas, segundosTranscurridos, contadorErrores);
+
+      const ahora = new Date();
+      const fechaStr = `${ahora.getDate().toString().padStart(2, '0')}/${(ahora.getMonth()+1).toString().padStart(2, '0')} ${ahora.getHours().toString().padStart(2, '0')}:${ahora.getMinutes().toString().padStart(2, '0')}`;
+
+      // Guardar partida en LocalStorage
+      guardarPartida({
+        fecha: fechaStr,
+        dificultad: label,
+        tiempo: formatearTiempo(segundosTranscurridos),
+        errores: contadorErrores,
+        puntaje: puntajeFinal
+      });
+
+      // Mostrar modal de victoria
+      document.getElementById("vic-score").textContent = puntajeFinal.toLocaleString();
+      document.getElementById("vic-diff").textContent = label;
+      document.getElementById("vic-time").textContent = formatearTiempo(segundosTranscurridos);
+      document.getElementById("vic-errors").textContent = contadorErrores;
+      document.getElementById("victory-modal").classList.add("visible");
+    }
+
+    function nuevoJuego() {
+      const pistas = parseInt(document.getElementById("difficulty").value, 10);
+      contadorErrores = 0;
+      celdaSeleccionada = null;
+      juegoTerminado = false;
+      enPausa = false;
+      document.getElementById("error-count").textContent = "0";
+      document.getElementById("pause-overlay").classList.remove("visible");
+      document.getElementById("pause-icon").textContent = "⏸";
+
+      tableroNotas = Array.from({ length: 9 }, () =>
+        Array.from({ length: 9 }, () => new Set())
+      );
+
+      tableroSolucion = Array.from({ length: 9 }, () => Array(9).fill(0));
+      llenarTablero(tableroSolucion);
+      tableroInicial = vaciarCeldasConSimetria(tableroSolucion, pistas);
+      tableroUsuario = tableroInicial.map(row => [...row]);
+
+      renderizarGrid();
+      actualizarEstadoTeclado();
+
+      clearInterval(temporizador);
+      segundosTranscurridos = 0;
+      document.getElementById("timer").textContent = "00:00";
+      correrReloj();
+    }
+
+    // Atajos de teclado
+    window.addEventListener("keydown", (e) => {
+      if (document.getElementById("history-modal").classList.contains("visible") ||
+          document.getElementById("victory-modal").classList.contains("visible")) {
+        if (e.key === "Escape") {
+          cerrarHistorial();
+          cerrarVictoria();
+        }
+        return;
+      }
+
+      if (e.key === "Escape" || e.code === "Space") {
+        togglePausa();
+        e.preventDefault();
+        return;
+      }
+
+      if (enPausa) return;
+
+      if (e.key === "n" || e.key === "N" || e.key === "p" || e.key === "P") {
+        toggleModoLapiz();
+        return;
+      }
+
+      if (!celdaSeleccionada) return;
+
+      if (e.key >= "1" && e.key <= "9") {
+        presionarNumero(parseInt(e.key, 10));
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        borrarCelda();
+      } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        let { f, c } = celdaSeleccionada;
+        if (e.key === "ArrowUp") f = (f > 0) ? f - 1 : 8;
+        if (e.key === "ArrowDown") f = (f < 8) ? f + 1 : 0;
+        if (e.key === "ArrowLeft") c = (c > 0) ? c - 1 : 8;
+        if (e.key === "ArrowRight") c = (c < 8) ? c + 1 : 0;
+        seleccionarCelda(f, c);
+      }
+    });
+
+    nuevoJuego();
+  </script>
+</body>
+</html>
