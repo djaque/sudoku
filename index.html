@@ -3,14 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sudoku Pro - Con Puntuación e Historial Local</title>
+  <title>Sudoku Pro</title>
   <style>
+    /* --- PALETA DE VARIABLES CSS (TEMA CLARO POR DEFECTO) --- */
+    :root {
+      --bg-body: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-secondary: #f1f5f9;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+      --border-subtle: #e2e8f0;
+      
+      --grid-border: #0f172a;
+      --cell-bg: #ffffff;
+      --cell-border: #e2e8f0;
+      --cell-selected: #bfdbfe;
+      --cell-highlight: #eff6ff;
+      --cell-same-number: #dbeafe;
+      
+      --color-clue: #0f172a;
+      --color-correct: #16a34a;
+      --color-error: #dc2626;
+      --bg-error: #fee2e2;
+      
+      --btn-primary-bg: #2563eb;
+      --btn-primary-hover: #1d4ed8;
+      --btn-primary-text: #ffffff;
+      
+      --numpad-btn-bg: #ffffff;
+      --numpad-btn-text: #1e293b;
+      --numpad-disabled-bg: #e2e8f0;
+      --numpad-disabled-text: #94a3b8;
+      
+      --overlay-bg: rgba(248, 250, 252, 0.88);
+      --modal-backdrop: rgba(15, 23, 42, 0.6);
+      --shadow-grid: rgba(15, 23, 42, 0.12);
+    }
+
+    /* --- PALETA MODO OSCURO (OPTIMIZADO PARA NOCHE) --- */
+    body.dark-theme {
+      --bg-body: #0b0f19;
+      --bg-surface: #131b2e;
+      --bg-surface-secondary: #1e293b;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      --border-subtle: #1e293b;
+      
+      --grid-border: #334155;
+      --cell-bg: #131b2e;
+      --cell-border: #1e293b;
+      --cell-selected: #1e3a8a;
+      --cell-highlight: #172554;
+      --cell-same-number: #1e293b;
+      
+      --color-clue: #93c5fd;
+      --color-correct: #4ade80;
+      --color-error: #f87171;
+      --bg-error: #450a0a;
+      
+      --btn-primary-bg: #3b82f6;
+      --btn-primary-hover: #2563eb;
+      --btn-primary-text: #ffffff;
+      
+      --numpad-btn-bg: #1e293b;
+      --numpad-btn-text: #f1f5f9;
+      --numpad-disabled-bg: #0f172a;
+      --numpad-disabled-text: #475569;
+      
+      --overlay-bg: rgba(11, 15, 25, 0.92);
+      --modal-backdrop: rgba(0, 0, 0, 0.75);
+      --shadow-grid: rgba(0, 0, 0, 0.5);
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       user-select: none;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
     }
 
     body {
@@ -19,8 +92,8 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background-color: #f8fafc;
-      color: #1e293b;
+      background-color: var(--bg-body);
+      color: var(--text-main);
       padding: 16px;
     }
 
@@ -35,7 +108,7 @@
     h1 {
       font-size: 1.6rem;
       font-weight: 700;
-      color: #0f172a;
+      color: var(--text-main);
       margin-bottom: 12px;
     }
 
@@ -47,10 +120,10 @@
       width: 100%;
       margin-bottom: 12px;
       padding: 8px 14px;
-      background: #ffffff;
+      background: var(--bg-surface);
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--border-subtle);
       font-size: 0.9rem;
       font-weight: 500;
     }
@@ -62,23 +135,25 @@
     }
 
     .badge-errors {
-      color: #dc2626;
+      color: var(--color-error);
     }
 
-    .btn-pause-inline {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
+    .btn-icon {
+      background: var(--bg-surface-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
       border-radius: 6px;
       padding: 4px 8px;
       font-size: 0.85rem;
       cursor: pointer;
       display: flex;
       align-items: center;
-      transition: background 0.15s;
+      justify-content: center;
+      gap: 4px;
     }
 
-    .btn-pause-inline:hover {
-      background: #e2e8f0;
+    .btn-icon:hover {
+      filter: brightness(0.95);
     }
 
     .controls {
@@ -91,12 +166,12 @@
     select, button {
       padding: 8px 14px;
       font-size: 0.9rem;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--border-color);
       border-radius: 6px;
-      background: #ffffff;
+      background: var(--bg-surface);
+      color: var(--text-main);
       cursor: pointer;
       font-weight: 500;
-      transition: all 0.15s ease;
     }
 
     select {
@@ -105,22 +180,22 @@
     }
 
     button.btn-primary {
-      background-color: #2563eb;
-      color: white;
+      background-color: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
       border: none;
     }
 
     button.btn-primary:hover {
-      background-color: #1d4ed8;
+      background-color: var(--btn-primary-hover);
     }
 
     button.btn-secondary {
-      background-color: #f8fafc;
-      color: #334155;
+      background-color: var(--bg-surface-secondary);
+      color: var(--text-main);
     }
 
     button.btn-secondary:hover {
-      background-color: #e2e8f0;
+      filter: brightness(0.92);
     }
 
     /* Tablero */
@@ -135,11 +210,11 @@
       grid-template-columns: repeat(9, 1fr);
       width: 100%;
       height: 100%;
-      background-color: #0f172a;
-      border: 3px solid #0f172a;
+      background-color: var(--grid-border);
+      border: 3px solid var(--grid-border);
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+      box-shadow: 0 4px 12px var(--shadow-grid);
     }
 
     /* Overlay de Pausa */
@@ -149,7 +224,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(248, 250, 252, 0.88);
+      background-color: var(--overlay-bg);
       backdrop-filter: blur(8px);
       display: none;
       flex-direction: column;
@@ -166,34 +241,34 @@
 
     .pause-overlay h2 {
       font-size: 1.4rem;
-      color: #0f172a;
+      color: var(--text-main);
     }
 
     /* Celdas */
     .cell {
       position: relative;
-      background-color: #ffffff;
+      background-color: var(--cell-bg);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 1.35rem;
       font-weight: 600;
       cursor: pointer;
-      border: 0.5px solid #e2e8f0;
-      transition: background-color 0.12s ease;
+      border: 0.5px solid var(--cell-border);
     }
 
     .cell:nth-child(3n) {
-      border-right: 2.5px solid #0f172a;
+      border-right: 2.5px solid var(--grid-border);
     }
     .cell:nth-child(9n) {
       border-right: none;
     }
     .grid > div:nth-child(n+19):nth-child(-n+27),
     .grid > div:nth-child(n+46):nth-child(-n+54) {
-      border-bottom: 2.5px solid #0f172a;
+      border-bottom: 2.5px solid var(--grid-border);
     }
 
+    /* Cuadrícula de notas pequeñas */
     .notes-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -210,35 +285,35 @@
       justify-content: center;
       font-size: 0.65rem;
       font-weight: 600;
-      color: #64748b;
+      color: var(--text-muted);
       line-height: 1;
     }
 
     /* Estados de celda */
     .cell.selected {
-      background-color: #bfdbfe !important;
+      background-color: var(--cell-selected) !important;
     }
 
     .cell.highlighted {
-      background-color: #eff6ff;
+      background-color: var(--cell-highlight);
     }
 
     .cell.same-number {
-      background-color: #dbeafe;
+      background-color: var(--cell-same-number);
     }
 
     .cell.clue {
-      color: #0f172a;
+      color: var(--color-clue);
       font-weight: 700;
     }
 
     .cell.user-correct {
-      color: #16a34a;
+      color: var(--color-correct);
     }
 
     .cell.user-error {
-      color: #dc2626;
-      background-color: #fee2e2 !important;
+      color: var(--color-error);
+      background-color: var(--bg-error) !important;
       animation: shake 0.25s ease-in-out;
     }
 
@@ -264,15 +339,15 @@
       padding: 6px 14px;
       font-size: 0.85rem;
       border-radius: 6px;
-      background-color: #ffffff;
-      border: 1px solid #cbd5e1;
-      color: #475569;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
     }
 
     .btn-tool.active {
-      background-color: #2563eb;
+      background-color: var(--btn-primary-bg);
       color: #ffffff;
-      border-color: #1d4ed8;
+      border-color: var(--btn-primary-hover);
       box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
     }
 
@@ -289,9 +364,9 @@
       height: 48px;
       font-size: 1.25rem;
       font-weight: 600;
-      color: #1e293b;
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
+      color: var(--numpad-btn-text);
+      background: var(--numpad-btn-bg);
+      border: 1px solid var(--border-color);
       border-radius: 8px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
       cursor: pointer;
@@ -301,31 +376,31 @@
     }
 
     .numpad-btn:active:not(:disabled) {
-      background-color: #e2e8f0;
+      filter: brightness(0.9);
       transform: scale(0.97);
     }
 
     .numpad-btn.btn-erase {
-      color: #dc2626;
+      color: var(--color-error);
       font-size: 1.1rem;
     }
 
     .numpad-btn:disabled,
     .numpad-btn.completed {
-      opacity: 0.28;
-      background-color: #e2e8f0 !important;
-      color: #94a3b8 !important;
-      border-color: #cbd5e1 !important;
+      opacity: 0.3;
+      background-color: var(--numpad-disabled-bg) !important;
+      color: var(--numpad-disabled-text) !important;
+      border-color: var(--border-color) !important;
       cursor: not-allowed;
       box-shadow: none;
       transform: none !important;
     }
 
-    /* Modales (Victoria e Historial) */
+    /* Modales */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background-color: rgba(15, 23, 42, 0.6);
+      background-color: var(--modal-backdrop);
       backdrop-filter: blur(4px);
       display: none;
       align-items: center;
@@ -339,12 +414,13 @@
     }
 
     .modal-card {
-      background: #ffffff;
+      background: var(--bg-surface);
       border-radius: 12px;
       max-width: 440px;
       width: 100%;
       padding: 24px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -355,7 +431,7 @@
     .modal-title {
       font-size: 1.25rem;
       font-weight: 700;
-      color: #0f172a;
+      color: var(--text-main);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -365,10 +441,10 @@
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
-      background: #f8fafc;
+      background: var(--bg-surface-secondary);
       padding: 12px;
       border-radius: 8px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--border-subtle);
     }
 
     .stat-item {
@@ -378,7 +454,7 @@
 
     .stat-label {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--text-muted);
       text-transform: uppercase;
       font-weight: 600;
     }
@@ -386,14 +462,14 @@
     .stat-val {
       font-size: 1.15rem;
       font-weight: 700;
-      color: #0f172a;
+      color: var(--text-main);
     }
 
     /* Tabla de Historial */
     .history-table-wrapper {
       max-height: 240px;
       overflow-y: auto;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--border-subtle);
       border-radius: 6px;
     }
 
@@ -405,22 +481,22 @@
     }
 
     .history-table th {
-      background: #f1f5f9;
+      background: var(--bg-surface-secondary);
       padding: 8px;
-      color: #475569;
+      color: var(--text-muted);
       position: sticky;
       top: 0;
     }
 
     .history-table td {
       padding: 8px;
-      border-top: 1px solid #e2e8f0;
-      color: #1e293b;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-main);
     }
 
     .score-badge {
       font-weight: 700;
-      color: #2563eb;
+      color: var(--btn-primary-bg);
     }
   </style>
 </head>
@@ -434,13 +510,19 @@
         <span>Fallos:</span>
         <strong id="error-count">0</strong>
       </div>
+      
       <div class="status-badge">
         <span>Tiempo:</span>
         <strong id="timer">00:00</strong>
-        <button id="btn-pause" class="btn-pause-inline" onclick="togglePausa()" title="Pausar juego">
+        <button id="btn-pause" class="btn-icon" onclick="togglePausa()" title="Pausar juego">
           <span id="pause-icon">⏸</span>
         </button>
       </div>
+
+      <!-- Botón Modo Oscuro -->
+      <button id="btn-theme" class="btn-icon" onclick="toggleTema()" title="Cambiar tema">
+        <span id="theme-icon">🌙</span>
+      </button>
     </div>
 
     <div class="controls">
@@ -494,7 +576,7 @@
       <div class="modal-title">
         <span>🎉 ¡Completado con Éxito!</span>
       </div>
-      <p style="font-size: 0.9rem; color: #64748b;">Tu partida ha sido guardada en el historial local.</p>
+      <p style="font-size: 0.9rem; color: var(--text-muted);">Tu partida ha sido guardada en el historial local.</p>
       
       <div class="modal-stats">
         <div class="stat-item">
@@ -527,7 +609,7 @@
     <div class="modal-card">
       <div class="modal-title">
         <span>🏆 Historial de Partidas</span>
-        <button style="border:none; background:none; font-size:1.2rem; cursor:pointer;" onclick="cerrarHistorial()">✕</button>
+        <button style="border:none; background:none; font-size:1.2rem; cursor:pointer; color: var(--text-muted);" onclick="cerrarHistorial()">✕</button>
       </div>
 
       <div class="modal-stats">
@@ -552,14 +634,12 @@
               <th>Puntos</th>
             </tr>
           </thead>
-          <tbody id="history-tbody">
-            <!-- Se llena dinámicamente con JS -->
-          </tbody>
+          <tbody id="history-tbody"></tbody>
         </table>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn-secondary" style="color: #dc2626;" onclick="limpiarHistorial()">Borrar Historial</button>
+        <button class="btn-secondary" style="color: var(--color-error);" onclick="limpiarHistorial()">Borrar Historial</button>
         <button class="btn-primary" onclick="cerrarHistorial()">Cerrar</button>
       </div>
     </div>
@@ -579,8 +659,38 @@
     let enPausa = false;
     let juegoTerminado = false;
 
-    // Base de datos local
-    const STORAGE_KEY = "sudoku_game_history_v1";
+    // Llaves de almacenamiento local
+    const STORAGE_KEY_HISTORY = "sudoku_game_history_v1";
+    const STORAGE_KEY_THEME = "sudoku_theme_preference";
+
+    // --- GESTIÓN DE TEMA OSCURO / CLARO ---
+    function aplicarTema(esOscuro) {
+      if (esOscuro) {
+        document.body.classList.add("dark-theme");
+        document.getElementById("theme-icon").textContent = "☀️";
+      } else {
+        document.body.classList.remove("dark-theme");
+        document.getElementById("theme-icon").textContent = "🌙";
+      }
+    }
+
+    function toggleTema() {
+      const actualOscuro = document.body.classList.contains("dark-theme");
+      const nuevoOscuro = !actualOscuro;
+      aplicarTema(nuevoOscuro);
+      localStorage.setItem(STORAGE_KEY_THEME, nuevoOscuro ? "dark" : "light");
+    }
+
+    function inicializarTema() {
+      const temaGuardado = localStorage.getItem(STORAGE_KEY_THEME);
+      if (temaGuardado) {
+        aplicarTema(temaGuardado === "dark");
+      } else {
+        // Detectar preferencia del sistema operativo
+        const prefiereOscuro = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        aplicarTema(prefiereOscuro);
+      }
+    }
 
     // --- GENERACIÓN DEL TABLERO ---
     function shuffle(array) {
@@ -664,7 +774,7 @@
       return tablero;
     }
 
-    // --- SISTEMA DE PUNTUACIÓN Y LOCALSTORAGE ---
+    // --- PUNTUACIÓN Y REGISTRO ---
     function obtenerPuntosBasePorPistas(pistas) {
       if (pistas >= 40) return { base: 2000, label: "Fácil" };
       if (pistas >= 32) return { base: 4000, label: "Medio" };
@@ -674,17 +784,15 @@
 
     function calcularPuntaje(pistas, segundos, errores) {
       const { base } = obtenerPuntosBasePorPistas(pistas);
-      const penalizacionTiempo = segundos * 2;
-      const penalizacionErrores = errores * 150;
-      const total = base - penalizacionTiempo - penalizacionErrores;
+      const total = base - (segundos * 2) - (errores * 150);
       return Math.max(100, Math.round(total));
     }
 
     function guardarPartida(resultado) {
       try {
-        const historial = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        historial.unshift(resultado); // Añadir al inicio
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(historial));
+        const historial = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY)) || [];
+        historial.unshift(resultado);
+        localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historial));
       } catch (e) {
         console.error("Error guardando en localStorage:", e);
       }
@@ -692,7 +800,7 @@
 
     function cargarHistorial() {
       try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        return JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY)) || [];
       } catch (e) {
         console.error("Error leyendo de localStorage:", e);
         return [];
@@ -701,12 +809,12 @@
 
     function limpiarHistorial() {
       if (confirm("¿Estás seguro de que deseas reiniciar todo tu historial de partidas?")) {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY_HISTORY);
         actualizarVistaHistorial();
       }
     }
 
-    // --- MODALES Y VISTA DE HISTORIAL ---
+    // --- MODALES ---
     function abrirHistorial() {
       pausarJuego();
       actualizarVistaHistorial();
@@ -729,7 +837,7 @@
       let mejorPuntaje = 0;
 
       if (historial.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding: 16px;">Sin partidas registradas aún.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding: 16px;">Sin partidas registradas aún.</td></tr>`;
       } else {
         historial.forEach(h => {
           if (h.puntaje > mejorPuntaje) mejorPuntaje = h.puntaje;
@@ -739,7 +847,7 @@
             <td>${h.fecha}</td>
             <td><strong>${h.dificultad}</strong></td>
             <td>${h.tiempo}</td>
-            <td style="color:${h.errores > 0 ? '#dc2626' : '#16a34a'}">${h.errores}</td>
+            <td style="color:${h.errores > 0 ? 'var(--color-error)' : 'var(--color-correct)'}">${h.errores}</td>
             <td class="score-badge">${h.puntaje.toLocaleString()}</td>
           `;
           tbody.appendChild(tr);
@@ -793,7 +901,7 @@
       if (!enPausa && !juegoTerminado) pausarJuego();
     });
 
-    // --- MODO LÁPIZ Y ENTRADA ---
+    // --- ENTRADA Y LÁPIZ ---
     function toggleModoLapiz() {
       if (enPausa) return;
       modoLapiz = !modoLapiz;
@@ -989,7 +1097,6 @@
       const ahora = new Date();
       const fechaStr = `${ahora.getDate().toString().padStart(2, '0')}/${(ahora.getMonth()+1).toString().padStart(2, '0')} ${ahora.getHours().toString().padStart(2, '0')}:${ahora.getMinutes().toString().padStart(2, '0')}`;
 
-      // Guardar partida en LocalStorage
       guardarPartida({
         fecha: fechaStr,
         dificultad: label,
@@ -998,7 +1105,6 @@
         puntaje: puntajeFinal
       });
 
-      // Mostrar modal de victoria
       document.getElementById("vic-score").textContent = puntajeFinal.toLocaleString();
       document.getElementById("vic-diff").textContent = label;
       document.getElementById("vic-time").textContent = formatearTiempo(segundosTranscurridos);
@@ -1074,6 +1180,8 @@
       }
     });
 
+    // Inicializar tema y arrancar juego
+    inicializarTema();
     nuevoJuego();
   </script>
 </body>
