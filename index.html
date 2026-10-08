@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sudoku Pro</title>
+  <title>Sudoku Pro - by Dny</title>
   <style>
-    /* --- PALETA DE VARIABLES CSS (TEMA CLARO POR DEFECTO) --- */
+    /* --- VARIABLES CSS (TEMA CLARO) --- */
     :root {
       --bg-body: #f8fafc;
       --bg-surface: #ffffff;
@@ -39,9 +39,12 @@
       --overlay-bg: rgba(248, 250, 252, 0.88);
       --modal-backdrop: rgba(15, 23, 42, 0.6);
       --shadow-grid: rgba(15, 23, 42, 0.12);
+
+      --hint-bg: #fef08a;
+      --hint-text: #854d0e;
     }
 
-    /* --- PALETA MODO OSCURO (OPTIMIZADO PARA NOCHE) --- */
+    /* --- PALETA MODO OSCURO --- */
     body.dark-theme {
       --bg-body: #0b0f19;
       --bg-surface: #131b2e;
@@ -75,6 +78,9 @@
       --overlay-bg: rgba(11, 15, 25, 0.92);
       --modal-backdrop: rgba(0, 0, 0, 0.75);
       --shadow-grid: rgba(0, 0, 0, 0.5);
+
+      --hint-bg: #713f12;
+      --hint-text: #fef08a;
     }
 
     * {
@@ -112,7 +118,6 @@
       margin-bottom: 12px;
     }
 
-    /* Barra superior de estado */
     .header-bar {
       display: flex;
       justify-content: space-between;
@@ -149,7 +154,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
     }
 
     .btn-icon:hover {
@@ -217,7 +221,6 @@
       box-shadow: 0 4px 12px var(--shadow-grid);
     }
 
-    /* Overlay de Pausa */
     .pause-overlay {
       position: absolute;
       top: 0;
@@ -244,7 +247,6 @@
       color: var(--text-main);
     }
 
-    /* Celdas */
     .cell {
       position: relative;
       background-color: var(--cell-bg);
@@ -268,7 +270,6 @@
       border-bottom: 2.5px solid var(--grid-border);
     }
 
-    /* Cuadrícula de notas pequeñas */
     .notes-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -289,7 +290,6 @@
       line-height: 1;
     }
 
-    /* Estados de celda */
     .cell.selected {
       background-color: var(--cell-selected) !important;
     }
@@ -317,31 +317,52 @@
       animation: shake 0.25s ease-in-out;
     }
 
+    /* Animación de pista agregada (destaca por 3 segundos) */
+    @keyframes hintPulse {
+      0% { transform: scale(0.92); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .cell.hint-animating {
+      background-color: var(--hint-bg) !important;
+      color: var(--hint-text) !important;
+      animation: hintPulse 0.5s ease-in-out;
+      z-index: 4;
+      box-shadow: inset 0 0 0 2px var(--hint-text);
+    }
+
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
       25% { transform: translateX(-3px); }
       75% { transform: translateX(3px); }
     }
 
-    /* Barra de herramientas */
     .tools-bar {
       display: flex;
       justify-content: space-between;
       width: 100%;
       margin-top: 14px;
-      gap: 10px;
+      gap: 8px;
     }
 
     .btn-tool {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
-      padding: 6px 14px;
+      padding: 6px 12px;
       font-size: 0.85rem;
       border-radius: 6px;
       background-color: var(--bg-surface);
       border: 1px solid var(--border-color);
       color: var(--text-muted);
+      flex: 1;
+    }
+
+    .btn-tool:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .btn-tool.active {
@@ -351,7 +372,6 @@
       box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
     }
 
-    /* Teclado numérico */
     .numpad {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -396,7 +416,6 @@
       transform: none !important;
     }
 
-    /* Modales */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -465,7 +484,6 @@
       color: var(--text-main);
     }
 
-    /* Tabla de Historial */
     .history-table-wrapper {
       max-height: 240px;
       overflow-y: auto;
@@ -498,6 +516,21 @@
       font-weight: 700;
       color: var(--btn-primary-bg);
     }
+
+    .bonus-banner {
+      background: #dcfce7;
+      color: #166534;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+    }
+    body.dark-theme .bonus-banner {
+      background: #14532d;
+      color: #86efac;
+    }
   </style>
 </head>
 <body>
@@ -519,23 +552,22 @@
         </button>
       </div>
 
-      <!-- Botón Modo Oscuro -->
       <button id="btn-theme" class="btn-icon" onclick="toggleTema()" title="Cambiar tema">
         <span id="theme-icon">🌙</span>
       </button>
     </div>
 
     <div class="controls">
-      <select id="difficulty">
-        <option value="42">Fácil (42 pistas)</option>
-        <option value="34" selected>Medio (34 pistas)</option>
+      <select id="difficulty" onchange="cambiarDificultad()">
+        <option value="42" selected>Fácil (42 pistas)</option>
+        <option value="34">Medio (34 pistas)</option>
         <option value="28">Difícil (28 pistas)</option>
         <option value="24">Experto (24 pistas)</option>
       </select>
       <button class="btn-primary" onclick="nuevoJuego()">Nuevo Juego</button>
     </div>
 
-    <!-- Tablero con Overlay de Pausa -->
+    <!-- Tablero con Overlay -->
     <div class="grid-wrapper">
       <div class="grid" id="sudoku-grid"></div>
       <div class="pause-overlay" id="pause-overlay">
@@ -548,6 +580,9 @@
     <div class="tools-bar">
       <button class="btn-tool" onclick="abrirHistorial()">
         <span>🏆 Historial</span>
+      </button>
+      <button id="btn-hint" class="btn-tool" onclick="solicitarPista()">
+        <span>💡 Pistas (<span id="hint-count">5</span>)</span>
       </button>
       <button id="btn-pencil" class="btn-tool" onclick="toggleModoLapiz()">
         <span>✏️ Lápiz (N)</span>
@@ -570,12 +605,13 @@
     </div>
   </div>
 
-  <!-- Modal de Victoria y Puntuación -->
+  <!-- Modal de Victoria -->
   <div class="modal-backdrop" id="victory-modal">
     <div class="modal-card">
       <div class="modal-title">
         <span>🎉 ¡Completado con Éxito!</span>
       </div>
+      <div class="bonus-banner" id="bonus-banner">⭐ ¡Bono de Juego Perfecto (+1.000 pts) por 0 errores y 0 pistas!</div>
       <p style="font-size: 0.9rem; color: var(--text-muted);">Tu partida ha sido guardada en el historial local.</p>
       
       <div class="modal-stats">
@@ -595,6 +631,10 @@
           <span class="stat-label">Errores</span>
           <span class="stat-val" id="vic-errors">0</span>
         </div>
+        <div class="stat-item">
+          <span class="stat-label">Pistas Usadas</span>
+          <span class="stat-val" id="vic-hints">0</span>
+        </div>
       </div>
 
       <div style="display: flex; gap: 8px;">
@@ -604,7 +644,7 @@
     </div>
   </div>
 
-  <!-- Modal de Historial y Estadísticas -->
+  <!-- Modal de Historial -->
   <div class="modal-backdrop" id="history-modal">
     <div class="modal-card">
       <div class="modal-title">
@@ -659,11 +699,18 @@
     let enPausa = false;
     let juegoTerminado = false;
 
+    // Estado de pistas
+    const MAX_PISTAS = 5;
+    let pistasDisponibles = MAX_PISTAS;
+    let pistasUsadas = 0;
+
     // Llaves de almacenamiento local
     const STORAGE_KEY_HISTORY = "sudoku_game_history_v1";
     const STORAGE_KEY_THEME = "sudoku_theme_preference";
+    const STORAGE_KEY_ACTIVE_GAME = "sudoku_active_game_state_v1";
+    const STORAGE_KEY_DIFFICULTY = "sudoku_saved_difficulty_v1";
 
-    // --- GESTIÓN DE TEMA OSCURO / CLARO ---
+    // --- TEMA OSCURO / CLARO ---
     function aplicarTema(esOscuro) {
       if (esOscuro) {
         document.body.classList.add("dark-theme");
@@ -686,10 +733,38 @@
       if (temaGuardado) {
         aplicarTema(temaGuardado === "dark");
       } else {
-        // Detectar preferencia del sistema operativo
         const prefiereOscuro = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
         aplicarTema(prefiereOscuro);
       }
+    }
+
+    // --- PERSISTENCIA DEL ESTADO ACTIVO ---
+    function guardarEstadoActivo() {
+      if (juegoTerminado) return;
+      const estado = {
+        tableroSolucion,
+        tableroInicial,
+        tableroUsuario,
+        tableroNotas: tableroNotas.map(fila => fila.map(set => Array.from(set))),
+        contadorErrores,
+        segundosTranscurridos,
+        pistasDisponibles,
+        pistasUsadas,
+        dificultad: document.getElementById("difficulty").value
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY_ACTIVE_GAME, JSON.stringify(estado));
+      } catch (e) {
+        console.error("Error guardando partida activa:", e);
+      }
+    }
+
+    function limpiarEstadoActivo() {
+      localStorage.removeItem(STORAGE_KEY_ACTIVE_GAME);
+    }
+
+    function cambiarDificultad() {
+      localStorage.setItem(STORAGE_KEY_DIFFICULTY, document.getElementById("difficulty").value);
     }
 
     // --- GENERACIÓN DEL TABLERO ---
@@ -782,10 +857,21 @@
       return { base: 10000, label: "Experto" };
     }
 
-    function calcularPuntaje(pistas, segundos, errores) {
+    function calcularPuntaje(pistas, segundos, errores, pistasUsadas) {
       const { base } = obtenerPuntosBasePorPistas(pistas);
-      const total = base - (segundos * 2) - (errores * 150);
-      return Math.max(100, Math.round(total));
+      // Pista resta 60 pts (menos que un error que resta 150)
+      const penalizacionTiempo = segundos * 2;
+      const penalizacionErrores = errores * 150;
+      const penalizacionPistas = pistasUsadas * 60;
+      
+      // Bono de 1000 pts por juego perfecto (0 errores y 0 pistas)
+      const bonoJuegoPerfecto = (errores === 0 && pistasUsadas === 0) ? 1000 : 0;
+      
+      const total = base - penalizacionTiempo - penalizacionErrores - penalizacionPistas + bonoJuegoPerfecto;
+      return {
+        puntaje: Math.max(100, Math.round(total)),
+        bonoAplicado: bonoJuegoPerfecto > 0
+      };
     }
 
     function guardarPartida(resultado) {
@@ -794,7 +880,7 @@
         historial.unshift(resultado);
         localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(historial));
       } catch (e) {
-        console.error("Error guardando en localStorage:", e);
+        console.error("Error guardando historial:", e);
       }
     }
 
@@ -802,7 +888,6 @@
       try {
         return JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY)) || [];
       } catch (e) {
-        console.error("Error leyendo de localStorage:", e);
         return [];
       }
     }
@@ -858,6 +943,73 @@
       document.getElementById("stat-best-score").textContent = mejorPuntaje.toLocaleString();
     }
 
+    // --- SISTEMA DE PISTAS (HINTS) ---
+    function actualizarBotonPistas() {
+      document.getElementById("hint-count").textContent = pistasDisponibles;
+      const btn = document.getElementById("btn-hint");
+      btn.disabled = pistasDisponibles <= 0;
+    }
+
+    function solicitarPista() {
+      if (enPausa || juegoTerminado || pistasDisponibles <= 0) return;
+
+      let targetF = -1, targetC = -1;
+
+      // 1. Si hay una celda seleccionada vacía o con valor incorrecto, usar esa celda
+      if (celdaSeleccionada) {
+        const { f, c } = celdaSeleccionada;
+        if (tableroInicial[f][c] === 0 && tableroUsuario[f][c] !== tableroSolucion[f][c]) {
+          targetF = f;
+          targetC = c;
+        }
+      }
+
+      // 2. Si no hay seleccionada apta, buscar todas las celdas no resueltas y escoger una al azar
+      if (targetF === -1) {
+        const candidatas = [];
+        for (let f = 0; f < 9; f++) {
+          for (let c = 0; c < 9; c++) {
+            if (tableroUsuario[f][c] !== tableroSolucion[f][c]) {
+              candidatas.push([f, c]);
+            }
+          }
+        }
+        if (candidatas.length === 0) return;
+        const [rf, rc] = candidatas[Math.floor(Math.random() * candidatas.length)];
+        targetF = rf;
+        targetC = rc;
+      }
+
+      const numSolucion = tableroSolucion[targetF][targetC];
+
+      // Asignar el valor
+      tableroUsuario[targetF][targetC] = numSolucion;
+      // Convertir en pista permanente
+      tableroInicial[targetF][targetC] = numSolucion;
+      tableroNotas[targetF][targetC].clear();
+      limpiarNotasVecinos(targetF, targetC, numSolucion);
+
+      // Descontar pista disponible y sumar usada
+      pistasDisponibles--;
+      pistasUsadas++;
+      actualizarBotonPistas();
+
+      // Destacar visualmente por 3 segundos
+      actualizarEstilosTablero();
+      const divCelda = document.querySelector(`.cell[data-fila="${targetF}"][data-col="${targetC}"]`);
+      if (divCelda) {
+        divCelda.classList.add("hint-animating");
+        setTimeout(() => {
+          if (divCelda) divCelda.classList.remove("hint-animating");
+          actualizarEstilosTablero();
+        }, 3000);
+      }
+
+      actualizarEstadoTeclado();
+      guardarEstadoActivo();
+      verificarVictoria();
+    }
+
     // --- TIEMPO Y PAUSA ---
     function formatearTiempo(totalSeg) {
       const m = String(Math.floor(totalSeg / 60)).padStart(2, "0");
@@ -878,6 +1030,7 @@
       clearInterval(temporizador);
       document.getElementById("pause-overlay").classList.add("visible");
       document.getElementById("pause-icon").textContent = "▶";
+      guardarEstadoActivo();
     }
 
     function reanudarJuego() {
@@ -899,6 +1052,10 @@
 
     window.addEventListener("blur", () => {
       if (!enPausa && !juegoTerminado) pausarJuego();
+    });
+
+    window.addEventListener("beforeunload", () => {
+      guardarEstadoActivo();
     });
 
     // --- ENTRADA Y LÁPIZ ---
@@ -946,6 +1103,7 @@
         if (tableroNotas[f][c].has(num)) tableroNotas[f][c].delete(num);
         else tableroNotas[f][c].add(num);
         actualizarEstilosTablero();
+        guardarEstadoActivo();
         return;
       }
 
@@ -961,6 +1119,7 @@
 
       actualizarEstilosTablero();
       actualizarEstadoTeclado();
+      guardarEstadoActivo();
       verificarVictoria();
     }
 
@@ -977,6 +1136,7 @@
 
       actualizarEstilosTablero();
       actualizarEstadoTeclado();
+      guardarEstadoActivo();
     }
 
     function presionarNumero(num) {
@@ -1038,7 +1198,9 @@
         const valor = tableroUsuario[f][c];
         const esPista = tableroInicial[f][c] !== 0;
 
+        const animandoPista = div.classList.contains("hint-animating");
         div.className = "cell";
+        if (animandoPista) div.classList.add("hint-animating");
         div.innerHTML = "";
 
         if (valor !== 0) {
@@ -1089,10 +1251,11 @@
       
       juegoTerminado = true;
       clearInterval(temporizador);
+      limpiarEstadoActivo();
 
       const pistas = parseInt(document.getElementById("difficulty").value, 10);
       const { label } = obtenerPuntosBasePorPistas(pistas);
-      const puntajeFinal = calcularPuntaje(pistas, segundosTranscurridos, contadorErrores);
+      const { puntaje, bonoAplicado } = calcularPuntaje(pistas, segundosTranscurridos, contadorErrores, pistasUsadas);
 
       const ahora = new Date();
       const fechaStr = `${ahora.getDate().toString().padStart(2, '0')}/${(ahora.getMonth()+1).toString().padStart(2, '0')} ${ahora.getHours().toString().padStart(2, '0')}:${ahora.getMinutes().toString().padStart(2, '0')}`;
@@ -1102,25 +1265,33 @@
         dificultad: label,
         tiempo: formatearTiempo(segundosTranscurridos),
         errores: contadorErrores,
-        puntaje: puntajeFinal
+        puntaje
       });
 
-      document.getElementById("vic-score").textContent = puntajeFinal.toLocaleString();
+      document.getElementById("bonus-banner").style.display = bonoAplicado ? "block" : "none";
+      document.getElementById("vic-score").textContent = puntaje.toLocaleString();
       document.getElementById("vic-diff").textContent = label;
       document.getElementById("vic-time").textContent = formatearTiempo(segundosTranscurridos);
       document.getElementById("vic-errors").textContent = contadorErrores;
+      document.getElementById("vic-hints").textContent = pistasUsadas;
       document.getElementById("victory-modal").classList.add("visible");
     }
 
+    // --- NUEVO JUEGO O CARGA DESDE CACHÉ ---
     function nuevoJuego() {
+      limpiarEstadoActivo();
       const pistas = parseInt(document.getElementById("difficulty").value, 10);
       contadorErrores = 0;
+      pistasDisponibles = MAX_PISTAS;
+      pistasUsadas = 0;
       celdaSeleccionada = null;
       juegoTerminado = false;
       enPausa = false;
+
       document.getElementById("error-count").textContent = "0";
       document.getElementById("pause-overlay").classList.remove("visible");
       document.getElementById("pause-icon").textContent = "⏸";
+      actualizarBotonPistas();
 
       tableroNotas = Array.from({ length: 9 }, () =>
         Array.from({ length: 9 }, () => new Set())
@@ -1138,6 +1309,47 @@
       segundosTranscurridos = 0;
       document.getElementById("timer").textContent = "00:00";
       correrReloj();
+      guardarEstadoActivo();
+    }
+
+    function cargarPartidaOIniciar() {
+      // 1. Cargar dificultad guardada o establecer "Fácil" (42) por defecto
+      const difGuardada = localStorage.getItem(STORAGE_KEY_DIFFICULTY) || "42";
+      document.getElementById("difficulty").value = difGuardada;
+
+      // 2. Comprobar si existe partida activa guardada
+      const estadoGuardado = localStorage.getItem(STORAGE_KEY_ACTIVE_GAME);
+      if (estadoGuardado) {
+        try {
+          const est = JSON.parse(estadoGuardado);
+          tableroSolucion = est.tableroSolucion;
+          tableroInicial = est.tableroInicial;
+          tableroUsuario = est.tableroUsuario;
+          tableroNotas = est.tableroNotas.map(row => row.map(arr => new Set(arr)));
+          contadorErrores = est.contadorErrores || 0;
+          segundosTranscurridos = est.segundosTranscurridos || 0;
+          pistasDisponibles = est.pistasDisponibles ?? MAX_PISTAS;
+          pistasUsadas = est.pistasUsadas ?? 0;
+          
+          if (est.dificultad) {
+            document.getElementById("difficulty").value = est.dificultad;
+          }
+
+          document.getElementById("error-count").textContent = contadorErrores;
+          document.getElementById("timer").textContent = formatearTiempo(segundosTranscurridos);
+          actualizarBotonPistas();
+
+          renderizarGrid();
+          actualizarEstadoTeclado();
+          correrReloj();
+          return;
+        } catch (e) {
+          console.error("Error restaurando estado activo, generando nuevo juego:", e);
+        }
+      }
+
+      // Si no hay partida en caché, generar una nueva con dificultad guardada
+      nuevoJuego();
     }
 
     // Atajos de teclado
@@ -1164,6 +1376,11 @@
         return;
       }
 
+      if (e.key === "h" || e.key === "H") {
+        solicitarPista();
+        return;
+      }
+
       if (!celdaSeleccionada) return;
 
       if (e.key >= "1" && e.key <= "9") {
@@ -1180,9 +1397,9 @@
       }
     });
 
-    // Inicializar tema y arrancar juego
+    // Inicialización al abrir la página
     inicializarTema();
-    nuevoJuego();
+    cargarPartidaOIniciar();
   </script>
 </body>
 </html>
